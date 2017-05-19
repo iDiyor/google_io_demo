@@ -1,39 +1,101 @@
 package main
 
 import (
+    "flag"
     "log"
     "net/http"  
-    "encoding/json"
+
+    "google_io_demo/city"
+    "google_io_demo/venue"
+    "google_io_demo/deal"
+    "google_io_demo/event"
+    "google_io_demo/config"
+    "google_io_demo/mongo"
+
+    "gopkg.in/mgo.v2"
+    "github.com/gorilla/mux"
 )
 
-type Response struct {
-    Message string `json:"message"`
-}
+var (
+    port = flag.String("p", ":4000", "Server Port")
+    env = flag.String("env", "dev", "Config environment")
+)
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func main() {
+    flag.Parse()
 
-    message := Response {
-        Message: "Google I/O 17",
-    }
+    // Load configs
+    config.Load(*env)
 
-    response, err := json.Marshal(message)
+    // MongoDB session
+    dbName := config.Current().MongoDBName
+    mongoAddress := config.Current().MongoAddress
+    session, err := mgo.Dial(mongoAddress)
     if err != nil {
         panic(err)
     }
+    log.Printf("MongoDB Address: %s", mongoAddress)
+    defer session.Close()
 
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    w.Write(response)
+    session.SetMode(mgo.Monotonic, true)
+
+    // Repositories
+    var (
+        cityRepo city.Repository
+        venueRepo venue.Repository
+        dealRepo deal.Repository
+        eventRepo event.Repository
+    )
+
+    cityRepo = mongo.NewCityRepository(dbName, session)
+    venueRepo, err = mongo.NewVenueRepository(dbName, session)
+    checkError(err)
+    dealRepo, err = mongo.NewDealRepository(dbName, session)
+    checkError(err)
+    eventRepo, err = mongo.NewEventRepository(dbName, session)
+    checkError(err)
+
+
+    // router
+    router := initRoutes(cityRepo, venueRepo, dealRepo, eventRepo)
+    http.Handle("/", logger(router))
+
+    // Server
+    log.Printf("Listening on port: %s", *port)
+    
+    err = http.ListenAndServe(*port, nil) 
+    if err != nil {
+        log.Fatal("ListenAndServe: ", err)
+    }
 }
 
-func main() {
+func initRoutes(
+        cityRepo city.Repository,
+        venueRepo venue.Repository,
+        dealRepo deal.Repository,
+        eventRepo event.Repository) *mux.Router {
 
-   http.HandleFunc("/", handler) 
+            router := mux.NewRouter()
 
-   log.Println("Listening on port: 8080")
+            // /cities/ routes
+            city.InitRoutes(router, cityRepo, venueRepo)
+            
+            // /venues/ routes
+            venue.InitRoutes(router, venueRepo, dealRepo, eventRepo)
 
-   err := http.ListenAndServe(":8080", nil) 
-   if err != nil {
-        log.Fatal("ListenAndServe: ", err)
+            return router
+}
+
+// logger middleware
+func logger(handler http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+	    handler.ServeHTTP(w, r)
+    })
+}
+
+func checkError(err error) {
+    if err != nil {
+        panic(err)
     }
 }

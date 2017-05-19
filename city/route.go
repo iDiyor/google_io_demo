@@ -14,9 +14,13 @@ func InitRoutes(router *mux.Router, city Repository, venue venue.Repository) {
     citiesRoute := router.PathPrefix("/cities").Subrouter()
     
     // GET - /cities/
-    citiesRoute.HandleFunc("/", ctrl.handleGETCities)
+    citiesRoute.HandleFunc("/", ctrl.handleGETCities).Methods("GET")
+    // POST - /cities/
+    citiesRoute.HandleFunc("/", ctrl.handlePOSTCity).Methods("POST")
     // GET - /cities/{city_id}
-    citiesRoute.HandleFunc("/{city_id}", ctrl.handleGETCityByID)
+    citiesRoute.HandleFunc("/{city_id}", ctrl.handleGETCityByID).Methods("GET")
     // GET - /cities/{city_id}/venues 
-    citiesRoute.HandleFunc("/{city_id}/venues", ctrl.handleGETVenues)
+    citiesRoute.HandleFunc("/{city_id}/venues", ctrl.handleGETVenues).Methods("GET")
+    // POST - /cities/{city_id}/venues 
+    citiesRoute.HandleFunc("/{city_id}/venues", ctrl.handlePOSTVenue).Methods("POST")
 }

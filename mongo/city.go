@@ -25,7 +25,7 @@ func (r *cityRepository) FindAll() ([]model.City, error) {
     sess := r.session.Copy()
     defer sess.Close()
 
-    c := sess.DB(r.dbName).C("city")
+    c := sess.DB(r.dbName).C("cities")
 
     cities := make([]model.City, 0)
 
@@ -41,11 +41,11 @@ func (r *cityRepository) FindByID(cityID string) (*model.City, error) {
     sess := r.session.Copy()
     defer sess.Close()
 
-    c := sess.DB(r.dbName).C("city")
+    c := sess.DB(r.dbName).C("cities")
 
     city := &model.City{}
 
-    err := c.Find(bson.M{"_id": cityID}).One(city)
+    err := c.Find(bson.M{"_id": bson.ObjectIdHex(cityID)}).One(city)
     if err != nil {
         return nil, err
     }
@@ -57,7 +57,7 @@ func (r *cityRepository) Save(city *model.City) error {
     sess := r.session.Copy()
     defer sess.Close()
 
-    c := sess.DB(r.dbName).C("city")
+    c := sess.DB(r.dbName).C("cities")
 
     err := c.Insert(city)
     if err != nil {
@@ -68,6 +68,16 @@ func (r *cityRepository) Save(city *model.City) error {
 }
 
 func (r *cityRepository) Update(city *model.City) error {
+    sess := r.session.Copy()
+    defer sess.Close()
+
+    c := sess.DB(r.dbName).C("cities")
+
+    _, err := c.Upsert(bson.M{"_id": city.ID}, bson.M{"$set": city})
+    if err != nil {
+        return err
+    }
+
     return nil
 }
 

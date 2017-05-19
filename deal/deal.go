@@ -6,4 +6,5 @@ import (
 
 type Repository interface {
     FindAllByVenueID(venueID string) ([]model.Deal, error)
+    Save(deal *model.Deal) error
 }

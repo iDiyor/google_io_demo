@@ -1,0 +1,4 @@
+{
+    "MongoAddress": "172.18.0.5:27017",
+    "MongoDBName": "prod"
+}
